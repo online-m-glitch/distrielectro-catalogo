@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ingresar — Panel DistriElectro</title>
+<style>
+body { font-family: system-ui, sans-serif; background: linear-gradient(135deg,#003366,#002347); display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+.card { background: white; border-radius: 12px; padding: 34px; max-width: 360px; width: 100%; box-shadow: 0 12px 40px rgba(0,0,0,0.25); box-sizing: border-box; }
+h1 { font-size: 19px; color: #003366; margin: 0 0 4px; }
+p.sub { font-size: 13px; color: #667; margin: 0 0 22px; }
+label { display: block; font-size: 12.5px; font-weight: 600; color: #445; margin-bottom: 5px; }
+input { width: 100%; padding: 10px 12px; border: 1px solid #ccd2dd; border-radius: 7px; font-size: 14px; margin-bottom: 16px; box-sizing: border-box; font-family: inherit; }
+button { width: 100%; padding: 11px; background: #003366; color: white; border: none; border-radius: 7px; font-size: 14px; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+.error { background: #fee2e2; color: #dc2626; padding: 10px 12px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>DistriElectro</h1>
+  <p class="sub">Panel de administración — catálogo y cotizador</p>
+  <div class="error" id="errorBox" hidden></div>
+  <form id="loginForm">
+    <label>Email</label>
+    <input type="email" id="email" required autofocus>
+    <label>Contraseña</label>
+    <input type="password" id="password" required>
+    <button type="submit" id="submitBtn">Ingresar</button>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-config.js"></script>
+<script>
+const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+const errorBox = document.getElementById('errorBox');
+
+function mostrarError(msg) {
+  errorBox.textContent = msg;
+  errorBox.hidden = false;
+}
+
+// Si ya hay sesión y es admin, saltamos directo al panel.
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    const { data: isAdmin } = await sb.rpc('is_admin');
+    if (isAdmin) { location.href = 'index.html'; return; }
+  }
+  const params = new URLSearchParams(location.search);
+  if (params.get('error') === 'noadmin') {
+    mostrarError('Ese usuario existe en Supabase Auth pero no está autorizado para entrar al panel (falta agregarlo en la tabla admin_emails).');
+  }
+})();
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  errorBox.hidden = true;
+  const submitBtn = document.getElementById('submitBtn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Ingresando...';
+
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) {
+    mostrarError('Email o contraseña incorrectos.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Ingresar';
+    return;
+  }
+
+  const { data: isAdmin } = await sb.rpc('is_admin');
+  if (!isAdmin) {
+    await sb.auth.signOut();
+    mostrarError('Ese usuario existe en Supabase Auth pero no está autorizado para entrar al panel (falta agregarlo en la tabla admin_emails).');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Ingresar';
+    return;
+  }
+
+  location.href = 'index.html';
+});
+</script>
+</body>
+</html>
