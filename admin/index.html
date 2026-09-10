@@ -45,15 +45,18 @@
   renderChrome('index.html', session.user.email);
   document.getElementById('saludo').textContent = 'Hola, ' + session.user.email;
 
-  const [{ count: totalProductos }, { count: totalProveedores }, { data: marcasRows }] = await Promise.all([
+  // Ojo: Supabase nunca devuelve más de 1000 filas en una consulta normal, así que
+  // para "cuántas marcas distintas hay" no alcanza con traer la columna "marca" de
+  // todos los productos (con miles de productos se cortaría) — se usa una función
+  // en la base (total_marcas()) que cuenta directamente ahí, sin ese límite.
+  const [{ count: totalProductos }, { count: totalProveedores }, { data: totalMarcas }] = await Promise.all([
     sb.from('productos').select('*', { count: 'exact', head: true }),
     sb.from('proveedores').select('*', { count: 'exact', head: true }),
-    sb.from('productos').select('marca'),
+    sb.rpc('total_marcas'),
   ]);
   document.getElementById('totalProductos').textContent = totalProductos ?? 0;
   document.getElementById('totalProveedores').textContent = totalProveedores ?? 0;
-  const marcasUnicas = new Set((marcasRows || []).map(r => r.marca));
-  document.getElementById('totalMarcas').textContent = marcasUnicas.size;
+  document.getElementById('totalMarcas').textContent = totalMarcas ?? 0;
 
   const { data: cargas } = await sb
     .from('uploads_log')

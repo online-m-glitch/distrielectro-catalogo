@@ -43,9 +43,16 @@ async function cargarProveedores() {
     .order('nombre');
   if (error) { mostrarMsg('No se pudo cargar la lista de proveedores: ' + error.message, 'error'); return; }
 
-  const { data: conteos } = await sb.from('productos').select('proveedor_id');
+  // Un conteo por proveedor pidiendo la columna proveedor_id de TODOS los productos
+  // se corta en 1000 filas (límite de Supabase) apenas un proveedor supera esa
+  // cantidad. En cambio, un conteo "exact/head" por proveedor no trae filas —
+  // solo el número — así que no tiene ese límite. Son pocas consultas (una por
+  // proveedor), rápidas y siempre exactas.
   const conteoPorProveedor = {};
-  (conteos || []).forEach(r => { conteoPorProveedor[r.proveedor_id] = (conteoPorProveedor[r.proveedor_id] || 0) + 1; });
+  await Promise.all((provs || []).map(async (p) => {
+    const { count } = await sb.from('productos').select('*', { count: 'exact', head: true }).eq('proveedor_id', p.id);
+    conteoPorProveedor[p.id] = count || 0;
+  }));
 
   proveedores = provs.map(p => {
     // config_proveedor viene embebido vía PostgREST — como proveedor_id es a la vez
