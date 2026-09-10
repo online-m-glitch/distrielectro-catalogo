@@ -551,7 +551,6 @@ table.catalog .qty-ctrl { margin-top: 0; flex-wrap: wrap; }
 // ══════════════════════════════════════════════════════════════════
 
 const SUPABASE_REST_ENDPOINT = window.SUPABASE_URL + '/rest/v1/productos_publico?select=*';
-const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xaqkwwev'; // mismo endpoint de consultas DistriElectro
 const WHATSAPP_NUMBER = '5491145458371';
 
 const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
@@ -1050,18 +1049,15 @@ function showContactForm() {
       '<div class="field" id="cf-wa-wrap"><label>WhatsApp <span style="color:var(--red)">*</span></label><input type="tel" id="cf-wa" placeholder="Ej: 1161234567"><div class="error-msg">Ingresá tu WhatsApp</div></div>' +
       '<div class="field" id="cf-email-wrap"><label>Email</label><input type="email" id="cf-email" placeholder="tucorreo@gmail.com"></div>' +
       '<div class="field"><label>Comentario</label><input type="text" id="cf-obs" placeholder="Opcional"></div>' +
-    '</div>' +
-    '<div id="cf-loader" style="display:none"><div class="spinner"></div><div style="text-align:center;font-size:12.5px;color:var(--text3)">Enviando solicitud...</div></div>';
+    '</div>';
 
   foot.innerHTML =
-    '<button class="btn-primary" id="cfSubmitBtn" onclick="submitQuote()">✓ Enviar solicitud</button>' +
-    '<button class="wsp-btn" type="button" style="margin-top:8px" onclick="enviarPorWhatsApp()">💬 Enviar por WhatsApp</button>' +
+    '<button class="btn-primary" id="cfSubmitBtn" onclick="submitQuote()">💬 Enviar por WhatsApp</button>' +
     '<button class="btn-secondary" onclick="renderDrawer()">← Volver a la cotización</button>';
 }
 
 // Texto con el detalle de la cotización (cantidad, SKU, descripción y precio
-// unitario de cada línea) — se usa tanto para el envío por Formspree como
-// para el mensaje prearmado de WhatsApp.
+// unitario de cada línea) — va dentro del mensaje de WhatsApp.
 function armarLineasCotizacion() {
   return Object.entries(cart).map(([sku, qty]) => {
     const p = PRODUCT_BY_SKU[sku];
@@ -1071,22 +1067,31 @@ function armarLineasCotizacion() {
   }).join('\n');
 }
 
-// Alternativa a enviar el formulario: manda la misma cotización directo por
-// WhatsApp, sin depender de Formspree. Toma el nombre si ya lo escribió,
-// pero no lo exige — la charla de WhatsApp se encarga del resto.
-function enviarPorWhatsApp() {
-  const nombre = (document.getElementById('cf-nombre').value || '').trim();
-  const lineas = armarLineasCotizacion();
-  const saludo = nombre ? ('Hola! Soy ' + nombre + '.') : 'Hola!';
-  const msg = encodeURIComponent(
-    saludo + ' Quiero pedir esta cotización desde el catálogo online (forma de pago: ' +
-    (payMode === 'efec' ? 'efectivo' : 'transferencia') + '):\n\n' + lineas +
-    '\n\nTotal estimado: ' + fmtMoney(cartTotal())
-  );
-  window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + msg, '_blank');
+// Arma el mensaje de WhatsApp con todos los datos de la solicitud —
+// contacto, forma de pago, comentario, el detalle de productos y el total —
+// listo para ir en el link de wa.me.
+function armarMensajeWhatsApp(reqId, nombre, wa, email, obs, lineas) {
+  const partes = [
+    'Hola! Quiero pedir esta cotización desde el catálogo online.',
+    'N° de solicitud: ' + reqId,
+    '',
+    'Nombre: ' + nombre,
+    'WhatsApp: ' + wa,
+  ];
+  if (email) partes.push('Email: ' + email);
+  partes.push('Forma de pago: ' + (payMode === 'efec' ? 'Efectivo' : 'Transferencia'));
+  if (obs) partes.push('Comentario: ' + obs);
+  partes.push('');
+  partes.push(lineas);
+  partes.push('');
+  partes.push('Total estimado: ' + fmtMoney(cartTotal()));
+  return encodeURIComponent(partes.join('\n'));
 }
 
-async function submitQuote() {
+// La cotización se manda directo por WhatsApp — no depende de ningún
+// servicio externo (Formspree u otro): solo arma el mensaje y abre el chat
+// con el número de DistriElectro.
+function submitQuote() {
   const nombre = document.getElementById('cf-nombre').value.trim();
   const wa = document.getElementById('cf-wa').value.trim();
   const email = document.getElementById('cf-email').value.trim();
@@ -1101,55 +1106,25 @@ async function submitQuote() {
 
   const reqId = 'COT-' + new Date().getFullYear() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
   const lineas = armarLineasCotizacion();
+  const msg = armarMensajeWhatsApp(reqId, nombre, wa, email, obs, lineas);
 
-  const payload = {
-    _subject: '🛒 Nueva solicitud de cotización — ' + nombre,
-    _replyto: email || undefined,
-    numero_solicitud: reqId,
-    nombre: nombre,
-    whatsapp: wa,
-    email: email || '—',
-    forma_de_pago: payMode === 'efec' ? 'Efectivo' : 'Transferencia',
-    observaciones: obs || '—',
-    productos: lineas,
-    total_estimado: fmtMoney(cartTotal())
-  };
-
-  document.getElementById('cfSubmitBtn').disabled = true;
-  document.getElementById('cf-loader').style.display = 'block';
-
-  try {
-    const res = await fetch(FORMSPREE_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (res.ok) {
-      showSuccess(reqId, nombre, wa, lineas);
-    } else {
-      throw new Error('Formspree error');
-    }
-  } catch (e) {
-    document.getElementById('cf-loader').style.display = 'none';
-    document.getElementById('cfSubmitBtn').disabled = false;
-    alert('Hubo un problema al enviar. Probá de nuevo en unos minutos, o escribinos directo por WhatsApp. N° de referencia: ' + reqId);
-  }
+  window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + msg, '_blank');
+  showSuccess(reqId, msg);
 }
 
-function showSuccess(reqId, nombre, wa, lineas) {
+function showSuccess(reqId, msg) {
   const body = document.getElementById('drawerBody');
   const foot = document.getElementById('drawerFoot');
   body.innerHTML =
     '<div class="success-wrap">' +
       '<div class="success-check">✓</div>' +
-      '<div class="success-title">¡Solicitud enviada!</div>' +
-      '<div class="success-sub">En las próximas horas te contactamos por WhatsApp o email con tu cotización.</div>' +
+      '<div class="success-title">¡Se abrió WhatsApp!</div>' +
+      '<div class="success-sub">Confirmá el envío del mensaje ahí para que te contactemos con tu cotización.</div>' +
       '<div class="req-id">' + reqId + '</div>' +
     '</div>';
 
-  const msg = encodeURIComponent('Hola! Acabo de pedir una cotización desde el catálogo online.\nN° de solicitud: ' + reqId + '\n\n' + lineas);
   foot.innerHTML =
-    '<a class="wsp-btn" href="https://wa.me/' + WHATSAPP_NUMBER + '?text=' + msg + '" target="_blank">💬 Confirmar por WhatsApp</a>' +
+    '<a class="wsp-btn" href="https://wa.me/' + WHATSAPP_NUMBER + '?text=' + msg + '" target="_blank">💬 Volver a abrir WhatsApp</a>' +
     '<button class="btn-secondary" onclick="finishQuote()">Cerrar y vaciar cotización</button>';
 }
 
