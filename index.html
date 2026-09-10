@@ -271,7 +271,14 @@ table.catalog tbody tr:hover { background: #fafbfc; }
 }
 .qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .qty-ctrl.qty-active .qty-input { border-color: var(--cyan); background: #f0fbfd; }
-table.catalog .qty-ctrl { margin-top: 0; }
+.qty-ctrl.qty-pending .qty-input { border-color: #f59e0b; background: #fffbeb; }
+table.catalog .qty-ctrl { margin-top: 0; flex-wrap: wrap; }
+.qty-add-btn {
+  border: none; border-radius: 5px; padding: 3px 9px; font-size: 11px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; background: #f59e0b; color: white; flex-shrink: 0;
+}
+.qty-add-btn:disabled { background: #e2e5eb; color: #98a2b3; cursor: default; }
+.qty-add-btn:hover:not(:disabled) { opacity: 0.9; }
 .remove-btn { border: none; background: none; color: var(--red); font-size: 11px; cursor: pointer; font-family: 'DM Sans', sans-serif; text-decoration: underline; margin-top: 4px; }
 
 .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -423,7 +430,6 @@ table.catalog .qty-ctrl { margin-top: 0; }
           <thead>
             <tr>
               <th onclick="sortBy('sku')">Código / SKU</th>
-              <th onclick="sortBy('proveedor')">Proveedor</th>
               <th onclick="sortBy('marca')">Marca</th>
               <th onclick="sortBy('descripcion')">Descripción</th>
               <th onclick="sortBy('precioUnitTransf')">Precio unidad (+ IVA)</th>
@@ -500,7 +506,8 @@ let currentPage = 1;
 let sortField = '';
 let sortDir = 1;
 let payMode = 'transf'; // 'transf' | 'efec'
-const cart = {}; // sku -> qty
+const cart = {}; // sku -> qty confirmada (ya agregada a la cotización)
+const pendingQty = {}; // sku -> qty tipeada en la fila, todavía SIN confirmar con "Agregar"
 
 // ── Helpers de precio ────────────────────────────────────
 function fmtMoney(n) { return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -679,15 +686,18 @@ function renderTable() {
   } else {
     empty.style.display = 'none';
     body.innerHTML = pageItems.map(p => {
-      const inCart = !!cart[p.sku];
+      const committed = cart[p.sku] || 0;
+      const inCart = committed > 0;
+      const shown = (p.sku in pendingQty) ? pendingQty[p.sku] : committed;
+      const dirty = shown !== committed; // hay un cambio tipeado que todavía no se confirmó
       const bultoUnit = unitBultoPrice(p);
       const bultoCell = (p.cajaMaster && bultoUnit != null)
         ? fmtMoney(bultoUnit) + ' c/u<span class="bulto-note">cja x' + p.cajaMaster + '</span>'
         : '—';
-      const qty = cart[p.sku] || 0;
+      const ctrlClass = dirty ? ' qty-pending' : (inCart ? ' qty-active' : '');
+      const btnLabel = inCart ? 'Actualizar' : 'Agregar';
       return '<tr>' +
         '<td class="sku-cell">' + p.sku + (p.ean ? '<span class="ean-note">EAN ' + p.ean + '</span>' : '') + '</td>' +
-        '<td class="prov-cell">' + p.proveedor + '</td>' +
         '<td><span class="marca-tag">' + p.marca + '</span></td>' +
         '<td class="desc-cell">' + p.descripcion + '</td>' +
         '<td class="price-cell">' + fmtMoney(unitBasePrice(p)) + fuenteTagHtml(p) + '</td>' +
@@ -695,10 +705,11 @@ function renderTable() {
         '<td class="iva-cell">' + ivaLabel(p.ivaPct) + '</td>' +
         '<td><span class="stock-badge ' + (stockClass[p.stock] || '') + '">' + p.stock + '</span></td>' +
         '<td>' +
-          '<div class="qty-ctrl' + (qty > 0 ? ' qty-active' : '') + '">' +
+          '<div class="qty-ctrl' + ctrlClass + '">' +
             '<button class="qty-btn" type="button" onclick="changeQty(\'' + p.sku + '\',-1)">−</button>' +
-            '<input class="qty-input" type="number" min="0" step="1" value="' + (qty || '') + '" placeholder="0" onchange="setQty(\'' + p.sku + '\', this.value)" onclick="this.select()">' +
+            '<input class="qty-input" type="number" min="0" step="1" value="' + (shown || '') + '" placeholder="0" onchange="setQty(\'' + p.sku + '\', this.value)" onclick="this.select()">' +
             '<button class="qty-btn" type="button" onclick="changeQty(\'' + p.sku + '\',1)">+</button>' +
+            '<button class="qty-add-btn" type="button" onclick="confirmarAgregar(\'' + p.sku + '\')"' + (dirty ? '' : ' disabled') + '>' + btnLabel + '</button>' +
           '</div>' +
         '</td>' +
         '</tr>';
@@ -728,18 +739,28 @@ function updateCartCount() {
   document.getElementById('cartCount').textContent = count;
 }
 
+// El +/- y el tipeo manual en la tabla solo ajustan un valor "pendiente" por
+// fila — todavía NO tocan la cotización. Hace falta apretar "Agregar" /
+// "Actualizar" (confirmarAgregar) para que se sume de verdad al carrito.
 function changeQty(sku, delta) {
-  cart[sku] = (cart[sku] || 0) + delta;
-  if (cart[sku] <= 0) delete cart[sku];
-  updateCartCount();
+  const actual = (sku in pendingQty) ? pendingQty[sku] : (cart[sku] || 0);
+  let next = actual + delta;
+  if (next < 0) next = 0;
+  pendingQty[sku] = next;
   renderTable();
-  renderDrawer();
 }
 
 function setQty(sku, value) {
   let qty = parseInt(value, 10);
   if (isNaN(qty) || qty < 0) qty = 0;
-  if (qty === 0) delete cart[sku]; else cart[sku] = qty;
+  pendingQty[sku] = qty;
+  renderTable();
+}
+
+function confirmarAgregar(sku) {
+  const qty = (sku in pendingQty) ? pendingQty[sku] : (cart[sku] || 0);
+  if (qty > 0) cart[sku] = qty; else delete cart[sku];
+  delete pendingQty[sku];
   updateCartCount();
   renderTable();
   renderDrawer();
@@ -747,6 +768,26 @@ function setQty(sku, value) {
 
 function removeFromCart(sku) {
   delete cart[sku];
+  updateCartCount();
+  renderTable();
+  renderDrawer();
+}
+
+// Estas dos son solo para el drawer (el panel de "Mi cotización"): ahí el
+// producto ya está confirmado, así que el +/- y el tipeo editan la
+// cantidad real del carrito al toque, sin pasar por "pendiente".
+function changeQtyCart(sku, delta) {
+  cart[sku] = (cart[sku] || 0) + delta;
+  if (cart[sku] <= 0) delete cart[sku];
+  updateCartCount();
+  renderTable();
+  renderDrawer();
+}
+
+function setQtyCart(sku, value) {
+  let qty = parseInt(value, 10);
+  if (isNaN(qty) || qty < 0) qty = 0;
+  if (qty === 0) delete cart[sku]; else cart[sku] = qty;
   updateCartCount();
   renderTable();
   renderDrawer();
@@ -792,9 +833,9 @@ function renderDrawer() {
         '<div class="cart-line-meta">' + p.sku + ' · ' + p.marca + '</div>' +
         (isTier ? '<div class="cart-line-tier">✓ precio de bulto aplicado (cja x' + p.cajaMaster + ')</div>' : '') +
         '<div class="qty-ctrl qty-active">' +
-          '<button class="qty-btn" type="button" onclick="changeQty(\'' + sku + '\',-1)">−</button>' +
-          '<input class="qty-input" type="number" min="0" step="1" value="' + qty + '" onchange="setQty(\'' + sku + '\', this.value)" onclick="this.select()">' +
-          '<button class="qty-btn" type="button" onclick="changeQty(\'' + sku + '\',1)">+</button>' +
+          '<button class="qty-btn" type="button" onclick="changeQtyCart(\'' + sku + '\',-1)">−</button>' +
+          '<input class="qty-input" type="number" min="0" step="1" value="' + qty + '" onchange="setQtyCart(\'' + sku + '\', this.value)" onclick="this.select()">' +
+          '<button class="qty-btn" type="button" onclick="changeQtyCart(\'' + sku + '\',1)">+</button>' +
         '</div>' +
         '<div class="cart-line-price">' + fmtMoney(unitPrice * qty) + '</div>' +
         '<button class="remove-btn" onclick="removeFromCart(\'' + sku + '\')">Quitar</button>' +
