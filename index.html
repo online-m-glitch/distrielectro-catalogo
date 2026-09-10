@@ -10,10 +10,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --navy: #003366;
-  --navy2: #002347;
-  --teal: #008B9B;
-  --cyan: #00AECC;
+  --navy: #007b93;
+  --navy2: #016576;
+  --teal: #008ca6;
+  --cyan: #00b6d6;
   --bg: #f4f6f9;
   --white: #ffffff;
   --border: #e2e5eb;
@@ -90,6 +90,19 @@ body {
   width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 700;
 }
+.login-btn {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.22); color: white;
+  border-radius: 20px; padding: 9px 16px; font-size: 12.5px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background 0.15s;
+}
+.login-btn:hover { background: rgba(255,255,255,0.2); }
+.user-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 20px; padding: 7px 14px; font-size: 12px; color: rgba(255,255,255,0.9); white-space: nowrap;
+}
+.user-badge a { color: var(--cyan); cursor: pointer; text-decoration: underline; font-weight: 600; }
+.priv-tag { background: var(--cyan); color: var(--navy2); font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
 
 /* ── Layout ────────────────────────────────────────────── */
 .layout {
@@ -281,6 +294,24 @@ table.catalog .qty-ctrl { margin-top: 0; flex-wrap: wrap; }
 .qty-add-btn:hover:not(:disabled) { opacity: 0.9; }
 .remove-btn { border: none; background: none; color: var(--red); font-size: 11px; cursor: pointer; font-family: 'DM Sans', sans-serif; text-decoration: underline; margin-top: 4px; }
 
+/* ── Modal de login (clientes mayoristas) ────────────────── */
+.login-modal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.96);
+  width: 380px; max-width: 92vw; background: white; border-radius: var(--radius);
+  z-index: 61; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+  box-shadow: 0 20px 60px rgba(16,24,40,0.25);
+}
+.login-modal.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+.login-modal-head {
+  padding: 18px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.login-modal-head h3 { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--navy); }
+.login-modal-body { padding: 18px 20px; }
+.login-modal-hint { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 14px; }
+.login-modal-foot { padding: 16px 20px; border-top: 1px solid var(--border); background: #fafbfc; }
+.login-error { font-size: 12px; color: var(--red); margin-top: 2px; }
+
 .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .total-lbl { font-size: 12.5px; color: var(--text2); }
 .total-val { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: var(--navy); }
@@ -342,6 +373,7 @@ table.catalog .qty-ctrl { margin-top: 0; flex-wrap: wrap; }
     </div>
     <div class="header-right">
       <div class="sync-badge"><span class="dot"></span><span id="syncLabel">Sincronizado: —</span></div>
+      <div id="authArea"></div>
       <button class="cart-btn" onclick="openDrawer()">🛒 Cotización <span class="cart-count" id="cartCount">0</span></button>
     </div>
   </div>
@@ -405,7 +437,6 @@ table.catalog .qty-ctrl { margin-top: 0; flex-wrap: wrap; }
       <div class="stats-grid">
         <div class="stat-tile"><div class="stat-num" id="statArticulos">0</div><div class="stat-lbl">Artículos</div></div>
         <div class="stat-tile"><div class="stat-num" id="statMarcas">0</div><div class="stat-lbl">Marcas</div></div>
-        <div class="stat-tile"><div class="stat-num" id="statProveedores">0</div><div class="stat-lbl">Proveedores</div></div>
         <div class="stat-tile"><div class="stat-num" id="statRubros">0</div><div class="stat-lbl">Rubros</div></div>
       </div>
     </div>
@@ -419,9 +450,9 @@ table.catalog .qty-ctrl { margin-top: 0; flex-wrap: wrap; }
         <div class="table-bar-right">
           Mostrar:
           <select id="fPageSize" onchange="renderTable()">
-            <option value="30">30 por pág.</option>
-            <option value="60">60 por pág.</option>
-            <option value="100">100 por pág.</option>
+            <option value="10">10 por pág.</option>
+            <option value="30" selected>30 por pág.</option>
+            <option value="50">50 por pág.</option>
           </select>
         </div>
       </div>
@@ -473,6 +504,25 @@ table.catalog .qty-ctrl { margin-top: 0; flex-wrap: wrap; }
   <div class="drawer-foot" id="drawerFoot"></div>
 </div>
 
+<!-- ═══ Modal de login (clientes mayoristas habilitados) ═══ -->
+<div class="overlay" id="loginOverlay" onclick="closeLoginModal()"></div>
+<div class="login-modal" id="loginModal">
+  <div class="login-modal-head">
+    <h3>Ingresar</h3>
+    <button class="drawer-close" onclick="closeLoginModal()">✕</button>
+  </div>
+  <div class="login-modal-body">
+    <p class="login-modal-hint">Si sos cliente mayorista con cuenta habilitada, ingresá para ver también el precio por bulto. Si no tenés cuenta, podés seguir navegando el catálogo normalmente.</p>
+    <div class="field"><label>Email</label><input type="email" id="li-email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="field"><label>Contraseña</label><input type="password" id="li-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="login-error" id="loginError" style="display:none"></div>
+  </div>
+  <div class="login-modal-foot">
+    <button class="btn-primary" id="loginSubmitBtn" onclick="doLogin()">Ingresar</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="supabase-config.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════════
@@ -491,6 +541,13 @@ const SUPABASE_REST_ENDPOINT = window.SUPABASE_URL + '/rest/v1/productos_publico
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xaqkwwev'; // mismo endpoint de consultas DistriElectro
 const WHATSAPP_NUMBER = '5491145458371';
 
+const sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+function h(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function ivaLabel(pct) {
   if (pct == null || pct <= 0) return 'Neto S/IVA';
   const s = String(pct).replace(/\.?0+$/, '');
@@ -508,6 +565,86 @@ let sortDir = 1;
 let payMode = 'transf'; // 'transf' | 'efec'
 const cart = {}; // sku -> qty confirmada (ya agregada a la cotización)
 const pendingQty = {}; // sku -> qty tipeada en la fila, todavía SIN confirmar con "Agregar"
+let currentSession = null; // sesión de Supabase Auth, si el visitante inició sesión
+let puedeVerBulto = false; // lo decide la base de datos (función puede_ver_bulto()), nunca este archivo
+let loadedOnce = false;
+
+// ── Autenticación (clientes mayoristas) ──────────────────
+// Sin iniciar sesión, cualquiera ve el catálogo normal (precio por unidad —
+// el comportamiento de siempre). Si un cliente tiene usuario y Mariano lo
+// habilitó (tabla clientes_privilegiados en Supabase), al iniciar sesión
+// también ve el precio por bulto. Quién ve qué lo decide la base de datos
+// (RLS + la función puede_ver_bulto()) — este archivo solo refleja el
+// resultado, nunca lo determina.
+async function initAuth() {
+  sb.auth.onAuthStateChange(async (_event, session) => {
+    const cambioDeUsuario = (session?.user?.id || null) !== (currentSession?.user?.id || null);
+    await onSessionChange(session);
+    if (loadedOnce && cambioDeUsuario) cargarCatalogo();
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  await onSessionChange(session);
+}
+
+async function onSessionChange(session) {
+  currentSession = session;
+  puedeVerBulto = false;
+  if (session) {
+    const { data } = await sb.rpc('puede_ver_bulto');
+    puedeVerBulto = !!data;
+  }
+  renderAuthArea();
+}
+
+function renderAuthArea() {
+  const el = document.getElementById('authArea');
+  if (!currentSession) {
+    el.innerHTML = '<button class="login-btn" onclick="openLoginModal()">Ingresar</button>';
+    return;
+  }
+  el.innerHTML = '<div class="user-badge">👤 ' + h(currentSession.user.email) +
+    (puedeVerBulto ? ' <span class="priv-tag">Ve x bulto</span>' : '') +
+    ' <a onclick="doLogout()">Salir</a></div>';
+}
+
+function openLoginModal() {
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('li-email').value = '';
+  document.getElementById('li-pass').value = '';
+  document.getElementById('loginOverlay').classList.add('open');
+  document.getElementById('loginModal').classList.add('open');
+  document.getElementById('li-email').focus();
+}
+function closeLoginModal() {
+  document.getElementById('loginOverlay').classList.remove('open');
+  document.getElementById('loginModal').classList.remove('open');
+}
+
+async function doLogin() {
+  const email = document.getElementById('li-email').value.trim();
+  const pass = document.getElementById('li-pass').value;
+  const errBox = document.getElementById('loginError');
+  errBox.style.display = 'none';
+  if (!email || !pass) {
+    errBox.textContent = 'Completá tu email y contraseña.';
+    errBox.style.display = 'block';
+    return;
+  }
+  const btn = document.getElementById('loginSubmitBtn');
+  btn.disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.disabled = false;
+  if (error) {
+    errBox.textContent = 'Email o contraseña incorrectos.';
+    errBox.style.display = 'block';
+    return;
+  }
+  closeLoginModal();
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+}
 
 // ── Helpers de precio ────────────────────────────────────
 function fmtMoney(n) { return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -544,12 +681,17 @@ async function fetchTodosLosProductos() {
   const PAGE_SIZE = 1000;
   let all = [];
   let from = 0;
+  // Con sesión iniciada se manda el token del usuario logueado (así la vista
+  // productos_publico puede reconocerlo y, si está habilitado, destaparle el
+  // precio por bulto); sin sesión se manda la anon key de siempre — el
+  // comportamiento público no cambia en nada.
+  const token = currentSession ? currentSession.access_token : window.SUPABASE_ANON_KEY;
   while (true) {
     const res = await fetch(SUPABASE_REST_ENDPOINT, {
       cache: 'no-store',
       headers: {
         apikey: window.SUPABASE_ANON_KEY,
-        Authorization: 'Bearer ' + window.SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + token,
         Range: from + '-' + (from + PAGE_SIZE - 1),
       },
     });
@@ -605,7 +747,6 @@ function init() {
   document.getElementById('fRubro').innerHTML = '<option value="">Todos los rubros</option>' +
     rubros.map(r => '<option value="' + r + '">' + r + '</option>').join('');
 
-  document.getElementById('statProveedores').textContent = Object.keys(PROVEEDORES).length;
   document.getElementById('statRubros').textContent = rubros.length;
 
   applyFilters();
@@ -966,7 +1107,7 @@ function finishQuote() {
   closeDrawer();
 }
 
-cargarCatalogo();
+initAuth().then(() => { loadedOnce = true; cargarCatalogo(); });
 </script>
 </body>
 </html>

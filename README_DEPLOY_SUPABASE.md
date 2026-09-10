@@ -42,6 +42,16 @@ A diferencia de la versión de baehost (que tenía un `setup_admin.php` de un so
 
 Si en el futuro necesitás que otra persona tenga acceso al panel: creale su usuario en **Authentication → Users** (con "Auto Confirm User" tildado) y agregá su email en **Table Editor → admin_emails**. Sin ese segundo paso, aunque tenga usuario y contraseña válidos, no va a poder ver ni cargar nada — el panel y el catálogo nunca muestran los descuentos ni la utilidad, y las tablas de precios están bloqueadas para cualquiera que no esté en esa lista.
 
+### Clientes mayoristas: precio por unidad y por bulto
+
+Por defecto el catálogo (sin loguearse) muestra **solo el precio por unidad**, igual que siempre. Si querés que un cliente puntual vea también el **precio por bulto**, dale acceso con usuario y contraseña:
+
+1. Creale su usuario en **Authentication → Users → Add user → Create new user** (con "Auto Confirm User" tildado, igual que para vos).
+2. Agregá su email en **Table Editor → clientes_privilegiados** (misma lógica que `admin_emails`, pero esta tabla solo controla si ve precio por bulto — no le da acceso al panel).
+3. Pasale ese email y esa contraseña. Con el botón **"Ingresar"** arriba a la derecha del catálogo, va a poder loguearse y ver ambos precios; sin loguearse (o si no está en esa tabla) sigue viendo solo el precio por unidad.
+
+Para sacarle ese acceso más adelante, alcanza con borrar su fila de `clientes_privilegiados` — no hace falta borrar el usuario.
+
 ## 4. Configurar los proveedores y cargar listas
 
 Es exactamente el mismo flujo que en la versión de baehost:
@@ -65,9 +75,10 @@ Queda publicado en la dirección de GitHub Pages del paso 2 (la raíz, sin `/adm
 
 - **Los descuentos y márgenes nunca se exponen.** El catálogo público y la "anon key" de `supabase-config.js` solo tienen acceso a una vista (`productos_publico`) que devuelve los precios ya calculados — nunca la configuración interna de cada proveedor. Aunque alguien mire el código del sitio o la Network tab del navegador, no puede ver tus descuentos.
 - **Solo los emails de `admin_emails` pueden entrar al panel o tocar la base**, sin importar si alguien tiene o no la contraseña de otro usuario de Supabase — esto lo garantiza la base de datos misma (Row Level Security), no el panel.
-- Al revisar los "Security Advisors" de tu proyecto en Supabase vas a ver 3 avisos — **son esperados y no requieren acción**:
+- **El precio por bulto solo lo ve quien está habilitado.** La vista `productos_publico` decide fila por fila, del lado del servidor, si mostrar `precioBultoUnitTransf`/`precioBultoUnitEfec`/`cajaMaster` o dejarlos en `null`, según la función `puede_ver_bulto()` — lo mismo que ya hacía con los descuentos, esto no depende de nada que corra en el navegador del cliente.
+- Al revisar los "Security Advisors" de tu proyecto en Supabase vas a ver varios avisos — **son esperados y no requieren acción**:
   - *Security Definer View* en `productos_publico`: es intencional, es justamente lo que permite mostrar precios calculados sin exponer las tablas de origen.
-  - *Public/Signed-in can execute `is_admin()`*: también intencional — esa función solo devuelve `true`/`false` (si el que pregunta es admin o no), nunca datos; el panel la usa para decidir si te deja entrar, pero la protección real sigue estando en las políticas de cada tabla.
+  - *Public/Signed-in can execute `is_admin()`* y *`puede_ver_bulto()`*: también intencional — esas funciones solo devuelven `true`/`false`, nunca datos; se usan para decidir acceso, pero la protección real sigue estando en las políticas de cada tabla.
 
 ---
 
