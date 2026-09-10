@@ -535,6 +535,34 @@ function setPayMode(mode) {
 }
 
 // ── Carga de datos (API en vivo) ─────────────────────────
+// Supabase nunca devuelve más de 1000 filas en una sola consulta (es un límite
+// de seguridad del servidor). Con un catálogo de varios miles de productos, una
+// sola llamada se queda corta y se cortaría en el producto 1000 — así que se
+// piden "páginas" de 1000 con el header Range y se van juntando hasta que una
+// página vuelve con menos de 1000 (esa es la última).
+async function fetchTodosLosProductos() {
+  const PAGE_SIZE = 1000;
+  let all = [];
+  let from = 0;
+  while (true) {
+    const res = await fetch(SUPABASE_REST_ENDPOINT, {
+      cache: 'no-store',
+      headers: {
+        apikey: window.SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + window.SUPABASE_ANON_KEY,
+        Range: from + '-' + (from + PAGE_SIZE - 1),
+      },
+    });
+    if (!res.ok && res.status !== 206) throw new Error('HTTP ' + res.status);
+    const batch = await res.json();
+    if (!Array.isArray(batch)) throw new Error('Respuesta inesperada del servidor.');
+    all = all.concat(batch);
+    if (batch.length < PAGE_SIZE) break; // ya llegamos a la última página
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
 async function cargarCatalogo() {
   const banner = document.getElementById('statusBanner');
   const legend = document.getElementById('legendBanner');
@@ -544,13 +572,7 @@ async function cargarCatalogo() {
   legend.style.display = 'none';
 
   try {
-    const res = await fetch(SUPABASE_REST_ENDPOINT, {
-      cache: 'no-store',
-      headers: { apikey: window.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + window.SUPABASE_ANON_KEY }
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (!Array.isArray(data)) throw new Error('Respuesta inesperada del servidor.');
+    const data = await fetchTodosLosProductos();
 
     PRODUCTS = data;
     PRODUCT_BY_SKU = {};
