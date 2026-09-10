@@ -47,16 +47,24 @@ async function cargarProveedores() {
   const conteoPorProveedor = {};
   (conteos || []).forEach(r => { conteoPorProveedor[r.proveedor_id] = (conteoPorProveedor[r.proveedor_id] || 0) + 1; });
 
-  proveedores = provs.map(p => ({
-    id: p.id,
-    nombre: p.nombre,
-    total_productos: conteoPorProveedor[p.id] || 0,
-    config: p.config_proveedor?.[0] || {
-      moneda: 'ARS', tipo_cambio: 1, descuento_pct: 0, pronto_pago_pct: 0,
-      markup_unidad_transf_pct: 0, descuento_efectivo_unidad_pct: 0,
-      markup_bulto_transf_pct: 0, descuento_efectivo_bulto_pct: 0,
-    },
-  }));
+  proveedores = provs.map(p => {
+    // config_proveedor viene embebido vía PostgREST — como proveedor_id es a la vez
+    // clave primaria de config_proveedor Y foreign key a proveedores, Supabase lo
+    // detecta como relación uno-a-uno y lo devuelve como OBJETO, no como array de
+    // un elemento. Hay que soportar las dos formas para no perder los datos reales.
+    const cfgRaw = p.config_proveedor;
+    const cfg = Array.isArray(cfgRaw) ? cfgRaw[0] : cfgRaw;
+    return {
+      id: p.id,
+      nombre: p.nombre,
+      total_productos: conteoPorProveedor[p.id] || 0,
+      config: cfg || {
+        moneda: 'ARS', tipo_cambio: 1, descuento_pct: 0, pronto_pago_pct: 0,
+        markup_unidad_transf_pct: 0, descuento_efectivo_unidad_pct: 0,
+        markup_bulto_transf_pct: 0, descuento_efectivo_bulto_pct: 0,
+      },
+    };
+  });
 
   renderProveedores();
 }
