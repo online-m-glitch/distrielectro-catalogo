@@ -421,16 +421,39 @@ function procesarFilas(eanMap) {
 let resultado = null;
 let configProveedorActual = null;
 
+/**
+ * Si el mismo SKU aparece en más de una hoja (pasa en listas multimarca como
+ * la de Coresa Group), Supabase no permite que un mismo upsert actualice la
+ * misma fila dos veces dentro del mismo lote ("ON CONFLICT DO UPDATE command
+ * cannot affect row a second time"). La versión PHP no tenía este problema
+ * porque inserta fila por fila (donde el último SKU repetido simplemente
+ * pisa al anterior); acá hay que sacar los duplicados ANTES de mandar el
+ * lote, quedándonos con la última aparición — mismo resultado final.
+ */
+function dedupPorSku(filas) {
+  const map = new Map();
+  let duplicadas = 0;
+  for (const f of filas) {
+    if (map.has(f.sku)) duplicadas++;
+    map.set(f.sku, f); // la última aparición gana, igual que el UPSERT fila-por-fila de la versión PHP
+  }
+  return { filas: Array.from(map.values()), duplicadas };
+}
+
 async function prepararPreview() {
   const eanMap = state.eanSheet ? cargarEanMap(state.eanSheet, state.eanHeaderRow) : {};
   resultado = procesarFilas(eanMap);
+  const dedup = dedupPorSku(resultado.filas);
+  resultado.filas = dedup.filas;
+  resultado.duplicadas = dedup.duplicadas;
 
   const { data: cfg } = await sb.from('config_proveedor').select('*').eq('proveedor_id', state.proveedorId).single();
   configProveedorActual = cfg || { moneda: 'ARS', tipo_cambio: 1, descuento_pct: 0, pronto_pago_pct: 0, markup_unidad_transf_pct: 0, descuento_efectivo_unidad_pct: 0, markup_bulto_transf_pct: 0, descuento_efectivo_bulto_pct: 0 };
 
   document.getElementById('previewTitulo').textContent =
     `Vista previa — ${resultado.filas.length} productos listos para importar` +
-    (resultado.omitidas ? ` · ${resultado.omitidas} filas omitidas (sin SKU, descripción o precio válido)` : '');
+    (resultado.omitidas ? ` · ${resultado.omitidas} filas omitidas (sin SKU, descripción o precio válido)` : '') +
+    (resultado.duplicadas ? ` · ${resultado.duplicadas} filas con SKU repetido entre hojas (se usó la última)` : '');
 
   const filasPreview = resultado.filas.slice(0, 15).map(f => {
     const precios = calcularPrecios(f, configProveedorActual);
@@ -494,7 +517,8 @@ document.getElementById('btnImportar').addEventListener('click', async () => {
 
     document.getElementById('importadoMsg').innerHTML =
       `Listo — se importaron/actualizaron <strong>${total}</strong> productos` +
-      (resultado.omitidas ? ` (${resultado.omitidas} filas se omitieron por no tener SKU, descripción o precio válido)` : '') + '.';
+      (resultado.omitidas ? ` (${resultado.omitidas} filas se omitieron por no tener SKU, descripción o precio válido)` : '') +
+      (resultado.duplicadas ? ` (${resultado.duplicadas} filas tenían el mismo SKU repetido entre hojas — se guardó la última)` : '') + '.';
     mostrarPaso('importado');
   } catch (err) {
     mostrarMsg('Error al importar: ' + err.message, 'error');
