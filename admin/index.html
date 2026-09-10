@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inicio — Panel DistriElectro</title>
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+<div id="app-content" hidden>
+  <h1 class="page-title" id="saludo">Hola</h1>
+  <p class="page-sub">Resumen del catálogo.</p>
+
+  <div class="field-row">
+    <div class="card" style="text-align:center"><div style="font-size:26px; font-weight:800; color:#003366" id="totalProductos">—</div><div style="font-size:11px; color:#98a2b3; text-transform:uppercase">Productos</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:26px; font-weight:800; color:#003366" id="totalMarcas">—</div><div style="font-size:11px; color:#98a2b3; text-transform:uppercase">Marcas</div></div>
+    <div class="card" style="text-align:center"><div style="font-size:26px; font-weight:800; color:#003366" id="totalProveedores">—</div><div style="font-size:11px; color:#98a2b3; text-transform:uppercase">Proveedores</div></div>
+  </div>
+
+  <div class="card">
+    <strong style="font-size:14px">Accesos rápidos</strong>
+    <p style="margin-top:12px">
+      <a class="btn" href="upload.html">📤 Cargar lista de precios</a>
+      <a class="btn btn-secondary" href="proveedores.html">⚙️ Configurar proveedores</a>
+      <a class="btn btn-secondary" href="productos.html">📦 Ver productos</a>
+    </p>
+  </div>
+
+  <div class="card">
+    <strong style="font-size:14px">Últimas cargas</strong>
+    <table style="margin-top:12px">
+      <thead><tr><th>Proveedor</th><th>Archivo</th><th>Filas</th><th>Subido por</th><th>Fecha</th></tr></thead>
+      <tbody id="cargasBody"><tr><td colspan="5" style="text-align:center; color:#98a2b3; padding:20px">Cargando...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-config.js"></script>
+<script src="admin-common.js"></script>
+<script>
+(async () => {
+  const session = await requireAdmin();
+  if (!session) return;
+  renderChrome('index.html', session.user.email);
+  document.getElementById('saludo').textContent = 'Hola, ' + session.user.email;
+
+  const [{ count: totalProductos }, { count: totalProveedores }, { data: marcasRows }] = await Promise.all([
+    sb.from('productos').select('*', { count: 'exact', head: true }),
+    sb.from('proveedores').select('*', { count: 'exact', head: true }),
+    sb.from('productos').select('marca'),
+  ]);
+  document.getElementById('totalProductos').textContent = totalProductos ?? 0;
+  document.getElementById('totalProveedores').textContent = totalProveedores ?? 0;
+  const marcasUnicas = new Set((marcasRows || []).map(r => r.marca));
+  document.getElementById('totalMarcas').textContent = marcasUnicas.size;
+
+  const { data: cargas } = await sb
+    .from('uploads_log')
+    .select('archivo, filas_importadas, subido_por, subido_en, proveedores(nombre)')
+    .order('subido_en', { ascending: false })
+    .limit(8);
+
+  const body = document.getElementById('cargasBody');
+  if (!cargas || cargas.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#98a2b3; padding:20px">Todavía no cargaste ninguna lista.</td></tr>';
+  } else {
+    body.innerHTML = cargas.map(u => `
+      <tr>
+        <td>${h(u.proveedores?.nombre || '')}</td>
+        <td>${h(u.archivo)}</td>
+        <td>${u.filas_importadas}</td>
+        <td>${h(u.subido_por)}</td>
+        <td style="color:#98a2b3; font-size:11.5px">${fechaHora(u.subido_en)}</td>
+      </tr>
+    `).join('');
+  }
+})();
+</script>
+</body>
+</html>

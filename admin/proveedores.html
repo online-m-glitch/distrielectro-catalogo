@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proveedores — Panel DistriElectro</title>
+<link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+<div id="app-content" hidden>
+  <h1 class="page-title">Proveedores</h1>
+  <p class="page-sub">Cada proveedor tiene su propia fórmula de descuento, utilidad y forma de pago. Esta configuración nunca se muestra al cliente — solo se usa para calcular el precio final.</p>
+
+  <div id="msgBox"></div>
+
+  <div class="card">
+    <strong style="font-size:13.5px">Agregar proveedor nuevo</strong>
+    <form id="crearForm" style="margin-top:12px; display:flex; gap:10px; align-items:flex-end; max-width:420px">
+      <div style="flex:1"><label>Nombre</label><input type="text" id="nombreNuevo" placeholder="Ej: Epu Vision" required style="margin-bottom:0"></div>
+      <button class="btn" type="submit" style="height:38px">Crear</button>
+    </form>
+  </div>
+
+  <div id="proveedoresList">
+    <div class="card" style="text-align:center; color:#98a2b3; padding:30px">Cargando proveedores...</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-config.js"></script>
+<script src="admin-common.js"></script>
+<script>
+let proveedores = [];
+
+function mostrarMsg(texto, tipo) {
+  document.getElementById('msgBox').innerHTML = `<div class="${tipo === 'ok' ? 'msg-ok' : 'msg-error'}">${h(texto)}</div>`;
+}
+
+async function cargarProveedores() {
+  const { data: provs, error } = await sb
+    .from('proveedores')
+    .select('id, nombre, config_proveedor(*)')
+    .order('nombre');
+  if (error) { mostrarMsg('No se pudo cargar la lista de proveedores: ' + error.message, 'error'); return; }
+
+  const { data: conteos } = await sb.from('productos').select('proveedor_id');
+  const conteoPorProveedor = {};
+  (conteos || []).forEach(r => { conteoPorProveedor[r.proveedor_id] = (conteoPorProveedor[r.proveedor_id] || 0) + 1; });
+
+  proveedores = provs.map(p => ({
+    id: p.id,
+    nombre: p.nombre,
+    total_productos: conteoPorProveedor[p.id] || 0,
+    config: p.config_proveedor?.[0] || {
+      moneda: 'ARS', tipo_cambio: 1, descuento_pct: 0, pronto_pago_pct: 0,
+      markup_unidad_transf_pct: 0, descuento_efectivo_unidad_pct: 0,
+      markup_bulto_transf_pct: 0, descuento_efectivo_bulto_pct: 0,
+    },
+  }));
+
+  renderProveedores();
+}
+
+function renderProveedores() {
+  const cont = document.getElementById('proveedoresList');
+  cont.innerHTML = proveedores.map(p => {
+    const c = p.config;
+    const ejemplo = calcularPrecios({ precio_lista: 100, caja_master: 10 }, c);
+    return `
+    <div class="card" data-id="${p.id}">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px">
+        <strong style="font-size:15px; color:#003366">${h(p.nombre)}</strong>
+        <span class="tag">${p.total_productos} productos cargados</span>
+      </div>
+      <form class="configForm" data-id="${p.id}">
+        <div class="field-row">
+          <div>
+            <label>Moneda de la lista</label>
+            <select name="moneda">
+              <option value="ARS" ${c.moneda === 'ARS' ? 'selected' : ''}>Pesos (ARS)</option>
+              <option value="USD" ${c.moneda === 'USD' ? 'selected' : ''}>Dólares (USD)</option>
+            </select>
+          </div>
+          <div>
+            <label>Tipo de cambio (si es USD)</label>
+            <input type="text" name="tipo_cambio" value="${h(c.tipo_cambio)}">
+          </div>
+          <div>
+            <label>Descuento de lista del proveedor (%)</label>
+            <input type="text" name="descuento_pct" value="${h(c.descuento_pct)}">
+          </div>
+          <div>
+            <label>Adicional por pronto pago — solo bulto (%)</label>
+            <input type="text" name="pronto_pago_pct" value="${h(c.pronto_pago_pct)}">
+          </div>
+        </div>
+
+        <div class="hint">El costo se calcula como: precio de lista (convertido a pesos) × (1 − descuento de lista). Para el precio por bulto se resta además el adicional por pronto pago.</div>
+
+        <div class="field-row">
+          <div>
+            <label>Utilidad precio por unidad, transferencia (%)</label>
+            <input type="text" name="markup_unidad_transf_pct" value="${h(c.markup_unidad_transf_pct)}">
+          </div>
+          <div>
+            <label>Descuento adicional por unidad en efectivo (%)</label>
+            <input type="text" name="descuento_efectivo_unidad_pct" value="${h(c.descuento_efectivo_unidad_pct)}">
+          </div>
+          <div>
+            <label>Utilidad precio por bulto, transferencia (%)</label>
+            <input type="text" name="markup_bulto_transf_pct" value="${h(c.markup_bulto_transf_pct)}">
+          </div>
+          <div>
+            <label>Descuento adicional por bulto en efectivo (%)</label>
+            <input type="text" name="descuento_efectivo_bulto_pct" value="${h(c.descuento_efectivo_bulto_pct)}">
+          </div>
+        </div>
+
+        <div class="hint ejemplo-hint">Ejemplo con un producto de precio de lista 100 (en la moneda de este proveedor) y caja de 10 unidades:
+          unidad transferencia <strong>$${money(ejemplo.precioUnitTransf)}</strong>,
+          unidad efectivo <strong>$${money(ejemplo.precioUnitEfec)}</strong>,
+          bulto transferencia <strong>$${money(ejemplo.precioBultoUnitTransf || 0)}</strong> c/u,
+          bulto efectivo <strong>$${money(ejemplo.precioBultoUnitEfec || 0)}</strong> c/u.
+        </div>
+
+        <button class="btn" type="submit">Guardar configuración</button>
+      </form>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.configForm').forEach(form => {
+    form.addEventListener('submit', guardarConfig);
+    form.addEventListener('input', () => actualizarEjemplo(form));
+  });
+}
+
+function leerConfigDeForm(form) {
+  const fd = new FormData(form);
+  const num = (v) => { const n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? 0 : n; };
+  return {
+    moneda: fd.get('moneda') === 'USD' ? 'USD' : 'ARS',
+    tipo_cambio: num(fd.get('tipo_cambio')),
+    descuento_pct: num(fd.get('descuento_pct')),
+    pronto_pago_pct: num(fd.get('pronto_pago_pct')),
+    markup_unidad_transf_pct: num(fd.get('markup_unidad_transf_pct')),
+    descuento_efectivo_unidad_pct: num(fd.get('descuento_efectivo_unidad_pct')),
+    markup_bulto_transf_pct: num(fd.get('markup_bulto_transf_pct')),
+    descuento_efectivo_bulto_pct: num(fd.get('descuento_efectivo_bulto_pct')),
+  };
+}
+
+function actualizarEjemplo(form) {
+  const c = leerConfigDeForm(form);
+  const ejemplo = calcularPrecios({ precio_lista: 100, caja_master: 10 }, c);
+  const box = form.querySelector('.ejemplo-hint');
+  box.innerHTML = `Ejemplo con un producto de precio de lista 100 (en la moneda de este proveedor) y caja de 10 unidades:
+    unidad transferencia <strong>$${money(ejemplo.precioUnitTransf)}</strong>,
+    unidad efectivo <strong>$${money(ejemplo.precioUnitEfec)}</strong>,
+    bulto transferencia <strong>$${money(ejemplo.precioBultoUnitTransf || 0)}</strong> c/u,
+    bulto efectivo <strong>$${money(ejemplo.precioBultoUnitEfec || 0)}</strong> c/u.`;
+}
+
+async function guardarConfig(e) {
+  e.preventDefault();
+  const form = e.target;
+  const pid = Number(form.dataset.id);
+  const config = leerConfigDeForm(form);
+  const btn = form.querySelector('button[type=submit]');
+  btn.disabled = true;
+  const { error } = await sb.from('config_proveedor').update(config).eq('proveedor_id', pid);
+  btn.disabled = false;
+  if (error) { mostrarMsg('No se pudo guardar: ' + error.message, 'error'); return; }
+  mostrarMsg('Configuración guardada.', 'ok');
+  await cargarProveedores();
+}
+
+document.getElementById('crearForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const nombre = document.getElementById('nombreNuevo').value.trim();
+  if (!nombre) return;
+  const { data: nuevo, error } = await sb.from('proveedores').insert({ nombre }).select().single();
+  if (error) {
+    mostrarMsg(error.code === '23505' ? 'Ya existe un proveedor con ese nombre.' : ('No se pudo crear: ' + error.message), 'error');
+    return;
+  }
+  await sb.from('config_proveedor').insert({ proveedor_id: nuevo.id });
+  mostrarMsg(`Proveedor "${nombre}" creado. Ahora configurá sus descuentos abajo.`, 'ok');
+  document.getElementById('nombreNuevo').value = '';
+  await cargarProveedores();
+});
+
+(async () => {
+  const session = await requireAdmin();
+  if (!session) return;
+  renderChrome('proveedores.html', session.user.email);
+  await cargarProveedores();
+})();
+</script>
+</body>
+</html>
