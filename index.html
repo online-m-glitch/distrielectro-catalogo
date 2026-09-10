@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DistriElectro — Catálogo y Cotizador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #003366;
+  --navy2: #002347;
+  --teal: #008B9B;
+  --cyan: #00AECC;
+  --bg: #f4f6f9;
+  --white: #ffffff;
+  --border: #e2e5eb;
+  --border2: #ccd2dd;
+  --text: #101828;
+  --text2: #4b5566;
+  --text3: #98a2b3;
+  --green: #15803d;
+  --green-light: #dcfce7;
+  --amber: #92400e;
+  --amber-light: #fef3c7;
+  --blue: #1d4ed8;
+  --blue-light: #dbeafe;
+  --red: #dc2626;
+  --red-light: #fee2e2;
+  --radius: 10px;
+  --radius-sm: 7px;
+}
+
+body {
+  background: var(--bg);
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 40px;
+}
+
+/* ── Banner de datos de ejemplo ───────────────────────── */
+.demo-banner {
+  background: var(--amber-light);
+  border-bottom: 1px solid #fde68a;
+  color: var(--amber);
+  font-size: 12px;
+  text-align: center;
+  padding: 8px 14px;
+  line-height: 1.6;
+}
+.demo-banner strong { font-weight: 700; }
+.demo-banner .tag-inline { font-weight: 700; }
+.demo-banner.error { background: var(--red-light); border-bottom-color: #fecaca; color: var(--red); }
+.demo-banner a { color: inherit; text-decoration: underline; font-weight: 700; }
+
+/* ── Header ────────────────────────────────────────────── */
+.header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+  color: white;
+}
+.header-inner {
+  max-width: 1360px; margin: 0 auto;
+  padding: 18px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.header-logo { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+.header-logo span { color: var(--cyan); }
+.header-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sync-badge {
+  display: flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 20px; padding: 7px 14px; font-size: 12px; color: rgba(255,255,255,0.85);
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+.cart-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--cyan); color: var(--navy2);
+  border: none; border-radius: 20px; padding: 9px 16px 9px 14px;
+  font-size: 13px; font-weight: 700; font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.cart-btn:hover { opacity: 0.9; }
+.cart-count {
+  background: var(--navy2); color: white; border-radius: 50%;
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+}
+
+/* ── Layout ────────────────────────────────────────────── */
+.layout {
+  max-width: 1360px; margin: 0 auto; padding: 20px;
+  display: grid; grid-template-columns: 280px 1fr; gap: 18px; align-items: start;
+}
+@media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px; margin-bottom: 16px;
+}
+.card-title {
+  font-size: 11.5px; font-weight: 700; color: var(--text3);
+  letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px;
+}
+
+/* ── Filtros ───────────────────────────────────────────── */
+.field { margin-bottom: 13px; }
+.field:last-child { margin-bottom: 0; }
+.field label {
+  display: block; font-size: 11.5px; font-weight: 600; color: var(--text2);
+  margin-bottom: 5px; letter-spacing: 0.01em;
+}
+.field input, .field select {
+  width: 100%; padding: 9px 11px;
+  border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  font-size: 13.5px; font-family: 'DM Sans', sans-serif;
+  color: var(--text); background: var(--white); appearance: none;
+}
+.field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2398a2b3' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 11px center; padding-right: 30px; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,174,204,0.15); }
+.sort-row { display: flex; gap: 8px; }
+.sort-row select { flex: 1; }
+.sort-dir {
+  width: 40px; border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  background: var(--white); cursor: pointer; font-size: 13px; color: var(--text2);
+}
+.reset-btn {
+  width: 100%; margin-top: 14px; padding: 9px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border2); background: var(--bg); color: var(--text2);
+  font-size: 12.5px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer;
+}
+.reset-btn:hover { border-color: var(--text3); }
+
+/* ── Toggle forma de pago ─────────────────────────────── */
+.pay-toggle { display: flex; border: 1px solid var(--border2); border-radius: var(--radius-sm); overflow: hidden; }
+.pay-toggle button {
+  flex: 1; padding: 9px 6px; border: none; background: var(--white); color: var(--text2);
+  font-size: 12.5px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.12s;
+}
+.pay-toggle button.active { background: var(--navy); color: white; }
+.pay-hint { font-size: 10.5px; color: var(--text3); margin-top: 5px; line-height: 1.4; }
+
+/* ── Barra de forma de pago (arriba, siempre visible) ──── */
+.payment-bar { background: var(--teal); }
+.payment-bar-inner {
+  max-width: 1360px; margin: 0 auto; padding: 10px 20px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.payment-bar-label { color: white; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+.payment-bar .pay-toggle { border-color: rgba(255,255,255,0.4); max-width: 280px; }
+.payment-bar .pay-toggle button { background: rgba(255,255,255,0.12); color: white; }
+.payment-bar .pay-toggle button.active { background: white; color: var(--teal); }
+.payment-bar-hint { color: rgba(255,255,255,0.85); font-size: 11.5px; }
+
+/* ── Stats ─────────────────────────────────────────────── */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat-tile { background: var(--bg); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+.stat-num { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: var(--navy); }
+.stat-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
+
+/* ── Tabla ─────────────────────────────────────────────── */
+.table-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.table-bar {
+  background: var(--navy); color: white;
+  padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.table-bar-title { font-size: 13px; font-weight: 700; letter-spacing: 0.02em; }
+.table-bar-right { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.table-bar-right select {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white;
+  border-radius: 6px; padding: 5px 8px; font-size: 12px; font-family: 'DM Sans', sans-serif;
+}
+.table-scroll { overflow-x: auto; }
+table.catalog { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 980px; }
+table.catalog thead th {
+  text-align: left; font-size: 10.5px; font-weight: 700; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 12px;
+  border-bottom: 1px solid var(--border); background: #fafbfc; cursor: pointer; white-space: nowrap;
+  user-select: none;
+}
+table.catalog thead th:hover { color: var(--navy); }
+table.catalog tbody td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.catalog tbody tr:last-child td { border-bottom: none; }
+table.catalog tbody tr:hover { background: #fafbfc; }
+.sku-cell { font-weight: 600; color: var(--text); font-family: 'DM Sans', sans-serif; white-space: nowrap; font-size: 11.5px; }
+.ean-note { color: var(--text3); font-size: 10px; display: block; font-weight: 400; }
+.marca-tag {
+  display: inline-block; background: #e8f6f9; color: var(--teal);
+  border: 1px solid #bfe8ee; border-radius: 5px; padding: 2px 8px; font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.prov-cell { color: var(--text3); font-size: 11px; white-space: nowrap; }
+.desc-cell { color: var(--text2); max-width: 300px; }
+.price-cell { font-weight: 700; color: var(--navy); white-space: nowrap; }
+.bulto-cell { color: var(--text2); white-space: nowrap; font-size: 12px; }
+.bulto-note { color: var(--text3); font-size: 10.5px; display: block; font-weight: 400; }
+.iva-cell { color: var(--text3); font-size: 11.5px; white-space: nowrap; }
+.stock-badge { font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.stock-ok { background: var(--green-light); color: var(--green); }
+.stock-pedido { background: var(--amber-light); color: var(--amber); }
+.stock-consultar { background: #f1f2f4; color: var(--text3); }
+.stock-sin { background: var(--red-light); color: var(--red); }
+.add-btn {
+  border: 1px solid var(--cyan); background: white; color: var(--teal);
+  border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; white-space: nowrap; transition: all 0.12s;
+}
+.add-btn:hover { background: var(--cyan); color: white; }
+.add-btn.added { background: var(--green); border-color: var(--green); color: white; }
+
+.fuente-tag { font-size: 10px; font-weight: 700; margin-left: 4px; padding: 1px 5px; border-radius: 4px; cursor: help; white-space: nowrap; }
+.fuente-web { color: var(--green); background: var(--green-light); }
+.fuente-lista { color: var(--blue); background: var(--blue-light); }
+.price-link { margin-left: 4px; font-size: 11px; text-decoration: none; opacity: 0.6; }
+.price-link:hover { opacity: 1; }
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text3); font-size: 13.5px; }
+
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--text3);
+}
+.page-btn {
+  border: 1px solid var(--border2); background: white; color: var(--text2);
+  border-radius: var(--radius-sm); padding: 7px 14px; font-size: 12.5px; font-weight: 600;
+  font-family: 'DM Sans', sans-serif; cursor: pointer;
+}
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-btn:not(:disabled):hover { border-color: var(--text3); }
+
+/* ── Cotización drawer ────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(16,24,40,0.45);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 50;
+}
+.overlay.open { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 92vw;
+  background: white; z-index: 51; transform: translateX(100%); transition: transform 0.25s ease;
+  display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,0.12);
+}
+.drawer.open { transform: translateX(0); }
+.drawer-head {
+  padding: 18px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.drawer-head h3 { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--navy); }
+.drawer-close { border: none; background: var(--bg); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 15px; color: var(--text2); }
+.drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.drawer-foot { padding: 16px 20px; border-top: 1px solid var(--border); background: #fafbfc; }
+
+.cart-empty { text-align: center; padding: 40px 10px; color: var(--text3); font-size: 13px; }
+.cart-line { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.cart-line:last-child { border-bottom: none; }
+.cart-line-info { flex: 1; min-width: 0; }
+.cart-line-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.cart-line-meta { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.cart-line-price { font-size: 12.5px; color: var(--navy); font-weight: 700; margin-top: 4px; }
+.cart-line-tier { font-size: 10.5px; color: var(--green); font-weight: 600; margin-top: 2px; }
+.qty-ctrl { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.qty-btn { width: 22px; height: 22px; border: 1px solid var(--border2); background: white; border-radius: 5px; cursor: pointer; font-size: 13px; color: var(--text2); flex-shrink: 0; }
+.qty-btn:hover { background: #f1f2f4; }
+.qty-val { font-size: 12.5px; font-weight: 600; min-width: 18px; text-align: center; }
+.qty-input {
+  width: 42px; height: 22px; border: 1px solid var(--border2); border-radius: 5px; text-align: center;
+  font-size: 12.5px; font-weight: 600; font-family: 'DM Sans', sans-serif; color: var(--text); padding: 0 2px;
+  -moz-appearance: textfield;
+}
+.qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.qty-ctrl.qty-active .qty-input { border-color: var(--cyan); background: #f0fbfd; }
+table.catalog .qty-ctrl { margin-top: 0; }
+.remove-btn { border: none; background: none; color: var(--red); font-size: 11px; cursor: pointer; font-family: 'DM Sans', sans-serif; text-decoration: underline; margin-top: 4px; }
+
+.total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.total-lbl { font-size: 12.5px; color: var(--text2); }
+.total-val { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: var(--navy); }
+.btn-primary {
+  width: 100%; padding: 12px; border-radius: var(--radius-sm); border: none;
+  background: var(--navy); color: white; font-size: 14px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-secondary {
+  width: 100%; padding: 11px; border-radius: var(--radius-sm); border: 1px solid var(--border2);
+  background: white; color: var(--text2); font-size: 13px; font-weight: 600;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; margin-top: 8px;
+}
+
+.contact-form .field { margin-bottom: 12px; }
+.error-msg { font-size: 11px; color: var(--red); margin-top: 4px; display: none; }
+.field.has-error input { border-color: var(--red); }
+.field.has-error .error-msg { display: block; }
+
+.success-wrap { text-align: center; padding: 20px 6px; }
+.success-check {
+  width: 56px; height: 56px; border-radius: 50%; background: var(--green-light);
+  border: 2px solid #86efac; display: flex; align-items: center; justify-content: center;
+  font-size: 26px; margin: 0 auto 14px;
+}
+.success-title { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.success-sub { font-size: 12.5px; color: var(--text2); line-height: 1.5; margin-bottom: 16px; }
+.req-id { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; color: var(--navy); margin-bottom: 16px; }
+.wsp-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px; border-radius: var(--radius-sm); background: #25D366; color: white;
+  font-size: 13.5px; font-weight: 700; font-family: 'DM Sans', sans-serif;
+  border: none; cursor: pointer; text-decoration: none; margin-bottom: 8px;
+}
+.spinner { width: 22px; height: 22px; border: 3px solid var(--border); border-top-color: var(--navy); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 20px auto; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.footer-note { max-width: 1360px; margin: 8px auto 0; padding: 0 20px; font-size: 11px; color: var(--text3); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="demo-banner" id="statusBanner">
+  Cargando catálogo actualizado…
+</div>
+<div class="demo-banner" id="legendBanner" style="display:none">
+  Los precios <strong>no incluyen IVA</strong> — se suma el % indicado en la columna IVA de cada producto. &nbsp;·&nbsp;
+  <span class="tag-inline fuente-tag fuente-web">WEB</span> = precio verificado hoy en distrielectro.com.ar &nbsp;·&nbsp;
+  <span class="tag-inline fuente-tag fuente-lista">LISTA</span> = calculado desde la última lista de precios cargada por el proveedor.
+</div>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <div class="header-logo">Distri<span>Electro</span></div>
+      <div class="header-sub">Catálogo de precios y cotizador — todas las marcas</div>
+    </div>
+    <div class="header-right">
+      <div class="sync-badge"><span class="dot"></span><span id="syncLabel">Sincronizado: —</span></div>
+      <button class="cart-btn" onclick="openDrawer()">🛒 Cotización <span class="cart-count" id="cartCount">0</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="payment-bar">
+  <div class="payment-bar-inner">
+    <span class="payment-bar-label">💳 Forma de pago:</span>
+    <div class="pay-toggle">
+      <button id="payTransfBtnTop" class="active" onclick="setPayMode('transf')">Transferencia</button>
+      <button id="payEfecBtnTop" onclick="setPayMode('efec')">Efectivo</button>
+    </div>
+    <span class="payment-bar-hint">Cambia el precio mostrado (los precios no incluyen IVA) y el de la cotización.</span>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- ═══ Sidebar ═══ -->
+  <div>
+    <div class="card">
+      <div class="card-title">Buscador detallado</div>
+      <div class="field">
+        <input type="text" id="fSearch" placeholder="Código, EAN, descripción, marca..." oninput="applyFilters()">
+      </div>
+      <div class="field">
+        <label>Marca</label>
+        <select id="fMarca" onchange="applyFilters()"></select>
+      </div>
+      <div class="field">
+        <label>Rubro / división</label>
+        <select id="fRubro" onchange="applyFilters()"></select>
+      </div>
+      <div class="field">
+        <label>Estado de stock</label>
+        <select id="fStock" onchange="applyFilters()">
+          <option value="">Todos los estados</option>
+          <option value="Disponible">Disponible</option>
+          <option value="A pedido">A pedido</option>
+          <option value="Consultar">Consultar stock</option>
+          <option value="Sin stock">Sin stock</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Ordenar catálogo</label>
+        <div class="sort-row">
+          <select id="fSort" onchange="applyFilters()">
+            <option value="">Sin ordenar</option>
+            <option value="sku">Código / SKU</option>
+            <option value="marca">Marca</option>
+            <option value="descripcion">Descripción</option>
+            <option value="precioUnitTransf">Precio</option>
+          </select>
+          <button class="sort-dir" id="sortDirBtn" onclick="toggleSortDir()">▲</button>
+        </div>
+      </div>
+      <button class="reset-btn" onclick="resetFilters()">Restablecer filtros</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Estudio de catálogo</div>
+      <div class="stats-grid">
+        <div class="stat-tile"><div class="stat-num" id="statArticulos">0</div><div class="stat-lbl">Artículos</div></div>
+        <div class="stat-tile"><div class="stat-num" id="statMarcas">0</div><div class="stat-lbl">Marcas</div></div>
+        <div class="stat-tile"><div class="stat-num" id="statProveedores">0</div><div class="stat-lbl">Proveedores</div></div>
+        <div class="stat-tile"><div class="stat-num" id="statRubros">0</div><div class="stat-lbl">Rubros</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Tabla ═══ -->
+  <div>
+    <div class="table-card">
+      <div class="table-bar">
+        <div class="table-bar-title" id="tableTitle">LISTA DISTRIELECTRO (0 PRODUCTOS)</div>
+        <div class="table-bar-right">
+          Mostrar:
+          <select id="fPageSize" onchange="renderTable()">
+            <option value="30">30 por pág.</option>
+            <option value="60">60 por pág.</option>
+            <option value="100">100 por pág.</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="catalog">
+          <thead>
+            <tr>
+              <th onclick="sortBy('sku')">Código / SKU</th>
+              <th onclick="sortBy('proveedor')">Proveedor</th>
+              <th onclick="sortBy('marca')">Marca</th>
+              <th onclick="sortBy('descripcion')">Descripción</th>
+              <th onclick="sortBy('precioUnitTransf')">Precio unidad (+ IVA)</th>
+              <th>Precio bulto (+ IVA)</th>
+              <th>IVA</th>
+              <th>Stock</th>
+              <th>Cantidad</th>
+            </tr>
+          </thead>
+          <tbody id="catalogBody"></tbody>
+        </table>
+      </div>
+      <div id="emptyState" class="empty-state" style="display:none">Ningún artículo del catálogo coincide con los selectores de búsqueda.</div>
+      <div class="pagination">
+        <button class="page-btn" id="prevBtn" onclick="changePage(-1)">Anterior</button>
+        <span id="pageInfo">Página 1 de 1 (0 artículos filtrados)</span>
+        <button class="page-btn" id="nextBtn" onclick="changePage(1)">Siguiente</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">
+  Precios expresados en pesos argentinos, netos de IVA (se suma el porcentaje indicado en la columna IVA). El precio por bulto se aplica automáticamente en la cotización al cargar la cantidad de la caja cerrada. Precios sujetos a modificación sin previo aviso. Documento no válido como factura.
+</div>
+
+<!-- ═══ Drawer de cotización ═══ -->
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3 id="drawerTitle">Mi cotización</h3>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div style="padding:14px 20px; border-bottom:1px solid var(--border)">
+    <div class="pay-toggle">
+      <button id="payTransfBtnD" class="active" onclick="setPayMode('transf')">Transferencia</button>
+      <button id="payEfecBtnD" onclick="setPayMode('efec')">Efectivo</button>
+    </div>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-foot" id="drawerFoot"></div>
+</div>
+
+<script src="supabase-config.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ESQUEMA DE DATOS — cada producto (viene de la vista productos_publico
+// en Supabase, que ya calcula los precios finales con la configuración
+// de cada proveedor cargada en el panel — este archivo nunca ve
+// descuentos ni utilidades: eso vive solo en tablas protegidas por RLS):
+// { sku, ean, proveedor, marca, rubro, descripcion,
+//   precioUnitTransf, precioUnitEfec,               // precio por unidad
+//   precioBultoUnitTransf, precioBultoUnitEfec,      // precio unitario al comprar la caja cerrada (null si no aplica)
+//   cajaMaster,                                      // cantidad de la caja cerrada (null si no aplica)
+//   ivaPct, stock, fuente ('lista'), fecha }
+// ══════════════════════════════════════════════════════════════════
+
+const SUPABASE_REST_ENDPOINT = window.SUPABASE_URL + '/rest/v1/productos_publico?select=*';
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xaqkwwev'; // mismo endpoint de consultas DistriElectro
+const WHATSAPP_NUMBER = '5491145458371';
+
+function ivaLabel(pct) {
+  if (pct == null || pct <= 0) return 'Neto S/IVA';
+  const s = String(pct).replace(/\.?0+$/, '');
+  return '+' + s + '%';
+}
+
+// ── Estado ────────────────────────────────────────────────
+let PRODUCTS = [];
+let PROVEEDORES = {};
+let PRODUCT_BY_SKU = {};
+let filtered = [];
+let currentPage = 1;
+let sortField = '';
+let sortDir = 1;
+let payMode = 'transf'; // 'transf' | 'efec'
+const cart = {}; // sku -> qty
+
+// ── Helpers de precio ────────────────────────────────────
+function fmtMoney(n) { return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function unitBasePrice(p) { return payMode === 'efec' ? p.precioUnitEfec : p.precioUnitTransf; }
+function unitBultoPrice(p) { return payMode === 'efec' ? p.precioBultoUnitEfec : p.precioBultoUnitTransf; }
+
+// Precio por unidad efectivo para una cantidad dada (aplica precio de bulto si la cantidad alcanza la caja master)
+function unitPriceForQty(p, qty) {
+  const bulto = unitBultoPrice(p);
+  if (p.cajaMaster && bulto != null && qty >= p.cajaMaster) return bulto;
+  return unitBasePrice(p);
+}
+
+function setPayMode(mode) {
+  payMode = mode;
+  ['', 'D', 'Top'].forEach(suf => {
+    const tb = document.getElementById('payTransfBtn' + suf);
+    const eb = document.getElementById('payEfecBtn' + suf);
+    if (tb) tb.classList.toggle('active', mode === 'transf');
+    if (eb) eb.classList.toggle('active', mode === 'efec');
+  });
+  renderTable();
+  renderDrawer();
+}
+
+// ── Carga de datos (API en vivo) ─────────────────────────
+async function cargarCatalogo() {
+  const banner = document.getElementById('statusBanner');
+  const legend = document.getElementById('legendBanner');
+  banner.style.display = 'block';
+  banner.classList.remove('error');
+  banner.textContent = 'Cargando catálogo actualizado…';
+  legend.style.display = 'none';
+
+  try {
+    const res = await fetch(SUPABASE_REST_ENDPOINT, {
+      cache: 'no-store',
+      headers: { apikey: window.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + window.SUPABASE_ANON_KEY }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error('Respuesta inesperada del servidor.');
+
+    PRODUCTS = data;
+    PRODUCT_BY_SKU = {};
+    PRODUCTS.forEach(p => { PRODUCT_BY_SKU[p.sku] = p; });
+
+    PROVEEDORES = {};
+    PRODUCTS.forEach(p => {
+      if (!PROVEEDORES[p.proveedor]) PROVEEDORES[p.proveedor] = new Set();
+      PROVEEDORES[p.proveedor].add(p.marca);
+    });
+    Object.keys(PROVEEDORES).forEach(k => { PROVEEDORES[k] = [...PROVEEDORES[k]].sort(); });
+
+    banner.style.display = 'none';
+    legend.style.display = 'block';
+    init();
+  } catch (e) {
+    banner.classList.add('error');
+    banner.innerHTML = 'No pudimos cargar el catálogo en este momento. ' +
+      'Probá recargar la página, o <a href="https://wa.me/' + WHATSAPP_NUMBER + '" target="_blank">escribinos por WhatsApp</a> y te cotizamos directamente.';
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────
+function init() {
+  document.getElementById('syncLabel').textContent = 'Sincronizado: ' + new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  rebuildMarcaOptions();
+
+  const rubros = [...new Set(PRODUCTS.map(p => p.rubro))].sort();
+  document.getElementById('fRubro').innerHTML = '<option value="">Todos los rubros</option>' +
+    rubros.map(r => '<option value="' + r + '">' + r + '</option>').join('');
+
+  document.getElementById('statProveedores').textContent = Object.keys(PROVEEDORES).length;
+  document.getElementById('statRubros').textContent = rubros.length;
+
+  applyFilters();
+}
+
+function rebuildMarcaOptions() {
+  const marcaSel = document.getElementById('fMarca');
+  const prev = marcaSel.value;
+  const marcas = [...new Set(PRODUCTS.map(p => p.marca))].sort();
+  marcaSel.innerHTML = '<option value="">Todas las marcas</option>' +
+    marcas.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+  if (marcas.includes(prev)) marcaSel.value = prev;
+}
+
+// ── Filtros ───────────────────────────────────────────────
+function applyFilters() {
+  const q = document.getElementById('fSearch').value.trim().toLowerCase();
+  const marca = document.getElementById('fMarca').value;
+  const rubro = document.getElementById('fRubro').value;
+  const stock = document.getElementById('fStock').value;
+
+  filtered = PRODUCTS.filter(p => {
+    if (marca && p.marca !== marca) return false;
+    if (rubro && p.rubro !== rubro) return false;
+    if (stock && p.stock !== stock) return false;
+    if (q) {
+      const hay = (p.sku + ' ' + (p.ean || '') + ' ' + p.descripcion + ' ' + p.marca).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (sortField) {
+    filtered.sort((a, b) => {
+      let va = a[sortField], vb = b[sortField];
+      if (typeof va === 'string') { va = va.toLowerCase(); vb = (vb || '').toLowerCase(); }
+      va = va == null ? -Infinity : va; vb = vb == null ? -Infinity : vb;
+      if (va < vb) return -1 * sortDir;
+      if (va > vb) return 1 * sortDir;
+      return 0;
+    });
+  }
+
+  currentPage = 1;
+  document.getElementById('statArticulos').textContent = filtered.length;
+  document.getElementById('statMarcas').textContent = new Set(filtered.map(p => p.marca)).size;
+  renderTable();
+}
+
+function sortBy(field) {
+  if (sortField === field) { sortDir *= -1; } else { sortField = field; sortDir = 1; }
+  document.getElementById('fSort').value = field === 'precioUnitTransf' ? 'precioUnitTransf' : field;
+  document.getElementById('sortDirBtn').textContent = sortDir === 1 ? '▲' : '▼';
+  applyFilters();
+}
+
+function toggleSortDir() {
+  sortDir *= -1;
+  document.getElementById('sortDirBtn').textContent = sortDir === 1 ? '▲' : '▼';
+  sortField = document.getElementById('fSort').value;
+  applyFilters();
+}
+
+function resetFilters() {
+  document.getElementById('fSearch').value = '';
+  rebuildMarcaOptions();
+  document.getElementById('fMarca').value = '';
+  document.getElementById('fRubro').value = '';
+  document.getElementById('fStock').value = '';
+  document.getElementById('fSort').value = '';
+  sortField = ''; sortDir = 1;
+  document.getElementById('sortDirBtn').textContent = '▲';
+  applyFilters();
+}
+
+// ── Tabla / paginación ───────────────────────────────────
+const stockClass = { 'Disponible': 'stock-ok', 'A pedido': 'stock-pedido', 'Consultar': 'stock-consultar', 'Sin stock': 'stock-sin' };
+const fuenteTitle = { 'web': 'Precio verificado hoy en distrielectro.com.ar', 'lista': 'Calculado desde la lista de precios oficial del proveedor' };
+
+function fuenteTagHtml(p) {
+  if (p.fuente === 'web') return '<span class="fuente-tag fuente-web" title="' + fuenteTitle.web + '">WEB</span>' + (p.url ? '<a class="price-link" href="' + p.url + '" target="_blank" title="Ver ficha en distrielectro.com.ar">🔗</a>' : '');
+  if (p.fuente === 'lista') return '<span class="fuente-tag fuente-lista" title="' + fuenteTitle.lista + (p.fecha ? ' (' + p.fecha + ')' : '') + '">LISTA</span>';
+  return '';
+}
+
+function renderTable() {
+  const pageSize = parseInt(document.getElementById('fPageSize').value);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+
+  document.getElementById('tableTitle').textContent = 'LISTA DISTRIELECTRO (' + filtered.length + ' PRODUCTOS)';
+
+  const body = document.getElementById('catalogBody');
+  const empty = document.getElementById('emptyState');
+  if (pageItems.length === 0) {
+    body.innerHTML = '';
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    body.innerHTML = pageItems.map(p => {
+      const inCart = !!cart[p.sku];
+      const bultoUnit = unitBultoPrice(p);
+      const bultoCell = (p.cajaMaster && bultoUnit != null)
+        ? fmtMoney(bultoUnit) + ' c/u<span class="bulto-note">cja x' + p.cajaMaster + '</span>'
+        : '—';
+      const qty = cart[p.sku] || 0;
+      return '<tr>' +
+        '<td class="sku-cell">' + p.sku + (p.ean ? '<span class="ean-note">EAN ' + p.ean + '</span>' : '') + '</td>' +
+        '<td class="prov-cell">' + p.proveedor + '</td>' +
+        '<td><span class="marca-tag">' + p.marca + '</span></td>' +
+        '<td class="desc-cell">' + p.descripcion + '</td>' +
+        '<td class="price-cell">' + fmtMoney(unitBasePrice(p)) + fuenteTagHtml(p) + '</td>' +
+        '<td class="bulto-cell">' + bultoCell + '</td>' +
+        '<td class="iva-cell">' + ivaLabel(p.ivaPct) + '</td>' +
+        '<td><span class="stock-badge ' + (stockClass[p.stock] || '') + '">' + p.stock + '</span></td>' +
+        '<td>' +
+          '<div class="qty-ctrl' + (qty > 0 ? ' qty-active' : '') + '">' +
+            '<button class="qty-btn" type="button" onclick="changeQty(\'' + p.sku + '\',-1)">−</button>' +
+            '<input class="qty-input" type="number" min="0" step="1" value="' + (qty || '') + '" placeholder="0" onchange="setQty(\'' + p.sku + '\', this.value)" onclick="this.select()">' +
+            '<button class="qty-btn" type="button" onclick="changeQty(\'' + p.sku + '\',1)">+</button>' +
+          '</div>' +
+        '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  document.getElementById('pageInfo').textContent = 'Página ' + currentPage + ' de ' + totalPages + ' (' + filtered.length + ' artículos filtrados)';
+  document.getElementById('prevBtn').disabled = currentPage <= 1;
+  document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+}
+
+function changePage(delta) {
+  currentPage += delta;
+  renderTable();
+}
+
+// ── Carrito / cotizador ──────────────────────────────────
+function addToCart(sku) {
+  cart[sku] = (cart[sku] || 0) + 1;
+  updateCartCount();
+  renderTable();
+  renderDrawer();
+}
+
+function updateCartCount() {
+  const count = Object.values(cart).reduce((a, b) => a + b, 0);
+  document.getElementById('cartCount').textContent = count;
+}
+
+function changeQty(sku, delta) {
+  cart[sku] = (cart[sku] || 0) + delta;
+  if (cart[sku] <= 0) delete cart[sku];
+  updateCartCount();
+  renderTable();
+  renderDrawer();
+}
+
+function setQty(sku, value) {
+  let qty = parseInt(value, 10);
+  if (isNaN(qty) || qty < 0) qty = 0;
+  if (qty === 0) delete cart[sku]; else cart[sku] = qty;
+  updateCartCount();
+  renderTable();
+  renderDrawer();
+}
+
+function removeFromCart(sku) {
+  delete cart[sku];
+  updateCartCount();
+  renderTable();
+  renderDrawer();
+}
+
+function cartTotal() {
+  return Object.entries(cart).reduce((sum, [sku, qty]) => {
+    const p = PRODUCT_BY_SKU[sku];
+    return sum + (p ? unitPriceForQty(p, qty) * qty : 0);
+  }, 0);
+}
+
+function openDrawer() {
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+  renderDrawer();
+}
+function closeDrawer() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+}
+
+function renderDrawer() {
+  const entries = Object.entries(cart);
+  document.getElementById('drawerTitle').textContent = 'Mi cotización (' + entries.reduce((a, [, q]) => a + q, 0) + ' ítems)';
+  const body = document.getElementById('drawerBody');
+  const foot = document.getElementById('drawerFoot');
+
+  if (entries.length === 0) {
+    body.innerHTML = '<div class="cart-empty">Todavía no agregaste productos.<br>Buscá en el catálogo y cargá la cantidad en la columna "Cantidad".</div>';
+    foot.innerHTML = '';
+    return;
+  }
+
+  body.innerHTML = entries.map(([sku, qty]) => {
+    const p = PRODUCT_BY_SKU[sku];
+    if (!p) return '';
+    const unitPrice = unitPriceForQty(p, qty);
+    const isTier = p.cajaMaster && qty >= p.cajaMaster && unitBultoPrice(p) != null;
+    return '<div class="cart-line">' +
+      '<div class="cart-line-info">' +
+        '<div class="cart-line-name">' + p.descripcion + '</div>' +
+        '<div class="cart-line-meta">' + p.sku + ' · ' + p.marca + '</div>' +
+        (isTier ? '<div class="cart-line-tier">✓ precio de bulto aplicado (cja x' + p.cajaMaster + ')</div>' : '') +
+        '<div class="qty-ctrl qty-active">' +
+          '<button class="qty-btn" type="button" onclick="changeQty(\'' + sku + '\',-1)">−</button>' +
+          '<input class="qty-input" type="number" min="0" step="1" value="' + qty + '" onchange="setQty(\'' + sku + '\', this.value)" onclick="this.select()">' +
+          '<button class="qty-btn" type="button" onclick="changeQty(\'' + sku + '\',1)">+</button>' +
+        '</div>' +
+        '<div class="cart-line-price">' + fmtMoney(unitPrice * qty) + '</div>' +
+        '<button class="remove-btn" onclick="removeFromCart(\'' + sku + '\')">Quitar</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  foot.innerHTML =
+    '<div class="total-row"><span class="total-lbl">Total estimado (' + (payMode === 'efec' ? 'efectivo' : 'transferencia') + ')</span><span class="total-val">' + fmtMoney(cartTotal()) + '</span></div>' +
+    '<button class="btn-primary" onclick="showContactForm()">Solicitar cotización</button>';
+}
+
+function showContactForm() {
+  const foot = document.getElementById('drawerFoot');
+  const body = document.getElementById('drawerBody');
+  body.innerHTML =
+    '<div class="contact-form">' +
+      '<div class="field" id="cf-nombre-wrap"><label>Nombre y apellido <span style="color:var(--red)">*</span></label><input type="text" id="cf-nombre" placeholder="Ej: Juan García"><div class="error-msg">Ingresá tu nombre</div></div>' +
+      '<div class="field" id="cf-wa-wrap"><label>WhatsApp <span style="color:var(--red)">*</span></label><input type="tel" id="cf-wa" placeholder="Ej: 1161234567"><div class="error-msg">Ingresá tu WhatsApp</div></div>' +
+      '<div class="field" id="cf-email-wrap"><label>Email</label><input type="email" id="cf-email" placeholder="tucorreo@gmail.com"></div>' +
+      '<div class="field"><label>Comentario</label><input type="text" id="cf-obs" placeholder="Opcional"></div>' +
+    '</div>' +
+    '<div id="cf-loader" style="display:none"><div class="spinner"></div><div style="text-align:center;font-size:12.5px;color:var(--text3)">Enviando solicitud...</div></div>';
+
+  foot.innerHTML =
+    '<button class="btn-primary" id="cfSubmitBtn" onclick="submitQuote()">✓ Enviar solicitud</button>' +
+    '<button class="btn-secondary" onclick="renderDrawer()">← Volver a la cotización</button>';
+}
+
+async function submitQuote() {
+  const nombre = document.getElementById('cf-nombre').value.trim();
+  const wa = document.getElementById('cf-wa').value.trim();
+  const email = document.getElementById('cf-email').value.trim();
+  const obs = document.getElementById('cf-obs').value.trim();
+
+  let ok = true;
+  if (!nombre) { document.getElementById('cf-nombre-wrap').classList.add('has-error'); ok = false; }
+  else document.getElementById('cf-nombre-wrap').classList.remove('has-error');
+  if (!wa) { document.getElementById('cf-wa-wrap').classList.add('has-error'); ok = false; }
+  else document.getElementById('cf-wa-wrap').classList.remove('has-error');
+  if (!ok) return;
+
+  const reqId = 'COT-' + new Date().getFullYear() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+  const lineas = Object.entries(cart).map(([sku, qty]) => {
+    const p = PRODUCT_BY_SKU[sku];
+    if (!p) return '';
+    const unitPrice = unitPriceForQty(p, qty);
+    return qty + 'x ' + p.sku + ' — ' + p.descripcion + ' (' + fmtMoney(unitPrice) + ' c/u)';
+  }).join('\n');
+
+  const payload = {
+    _subject: '🛒 Nueva solicitud de cotización — ' + nombre,
+    _replyto: email || undefined,
+    numero_solicitud: reqId,
+    nombre: nombre,
+    whatsapp: wa,
+    email: email || '—',
+    forma_de_pago: payMode === 'efec' ? 'Efectivo' : 'Transferencia',
+    observaciones: obs || '—',
+    productos: lineas,
+    total_estimado: fmtMoney(cartTotal())
+  };
+
+  document.getElementById('cfSubmitBtn').disabled = true;
+  document.getElementById('cf-loader').style.display = 'block';
+
+  try {
+    const res = await fetch(FORMSPREE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      showSuccess(reqId, nombre, wa, lineas);
+    } else {
+      throw new Error('Formspree error');
+    }
+  } catch (e) {
+    document.getElementById('cf-loader').style.display = 'none';
+    document.getElementById('cfSubmitBtn').disabled = false;
+    alert('Hubo un problema al enviar. Probá de nuevo en unos minutos, o escribinos directo por WhatsApp. N° de referencia: ' + reqId);
+  }
+}
+
+function showSuccess(reqId, nombre, wa, lineas) {
+  const body = document.getElementById('drawerBody');
+  const foot = document.getElementById('drawerFoot');
+  body.innerHTML =
+    '<div class="success-wrap">' +
+      '<div class="success-check">✓</div>' +
+      '<div class="success-title">¡Solicitud enviada!</div>' +
+      '<div class="success-sub">En las próximas horas te contactamos por WhatsApp o email con tu cotización.</div>' +
+      '<div class="req-id">' + reqId + '</div>' +
+    '</div>';
+
+  const msg = encodeURIComponent('Hola! Acabo de pedir una cotización desde el catálogo online.\nN° de solicitud: ' + reqId + '\n\n' + lineas);
+  foot.innerHTML =
+    '<a class="wsp-btn" href="https://wa.me/' + WHATSAPP_NUMBER + '?text=' + msg + '" target="_blank">💬 Confirmar por WhatsApp</a>' +
+    '<button class="btn-secondary" onclick="finishQuote()">Cerrar y vaciar cotización</button>';
+}
+
+function finishQuote() {
+  Object.keys(cart).forEach(k => delete cart[k]);
+  updateCartCount();
+  renderTable();
+  closeDrawer();
+}
+
+cargarCatalogo();
+</script>
+</body>
+</html>
